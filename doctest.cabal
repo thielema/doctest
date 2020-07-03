@@ -142,6 +142,7 @@ library
     , process
     , syb >=0.3
     , transformers
+    , utility-ht
   default-language: Haskell2010
 
 executable doctest

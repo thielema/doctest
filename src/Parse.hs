@@ -21,6 +21,10 @@ import           Data.Char (isSpace)
 import           Data.List
 import           Data.Maybe
 import           Data.String
+import qualified Data.List.HT as ListHT
+import           System.FilePath (joinPath, (</>), (<.>))
+import           System.Directory (createDirectoryIfMissing)
+import           Text.Printf (printf)
 #if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative
 #endif
@@ -48,6 +52,66 @@ type ExpectedResult = [ExpectedLine]
 
 type Interaction = (Expression, ExpectedResult)
 
+
+
+generateTestSuite :: IO ()
+generateTestSuite =
+    writeTestSuite =<< getDocTests ["-i:analysis/src", "Utility"]
+
+writeTestSuite :: [Module [Located DocTest]] -> IO ()
+writeTestSuite ms = do
+    mapM_ writeTestModule ms
+    let path = joinPath $ "analysis" : "test" : "Test" : "Main.hs" : []
+    let indent = map ("    " ++)
+    writeFile path $ unlines $
+        "module Main where" :
+        "" :
+        map (("import qualified Test." ++) . moduleName) ms ++
+        "" :
+        "main :: IO ()" :
+        "main = do" :
+        indent (map (printf "Test.%s.test" . moduleName) ms)
+
+writeTestModule :: Module [Located DocTest] -> IO ()
+writeTestModule m = do
+    case ListHT.viewR $ ListHT.chop ('.'==) $ moduleName m of
+        Nothing -> fail "empty module name"
+        Just (parts,modName) -> do
+            let path = joinPath $ "analysis" : "test" : "Test" : parts
+            createDirectoryIfMissing True path
+            writeFile (path</>modName<.>"hs") $ formatTestModule m
+
+formatTestModule :: Module [Located DocTest] -> String
+formatTestModule m =
+    let indent = map ("    " ++)
+        formatLinePragma (Location path loc) =
+            printf "{-# LINE %d %s #-}" loc (show path)
+        formatLocation locat@(Location path loc) =
+            printf "putStrLn ('\\n':%s++\":%d:1\")" (show path) loc :
+            formatLinePragma locat :
+            []
+        formatImport (Located loc (Example str [])) =
+            unlines $ formatLinePragma loc : str : []
+        formatTest (Located loc body) =
+            formatLocation loc ++
+            case body of
+                Property prop -> [printf "quickCheck (%s)" prop]
+                Example str results -> "{-" : str : map show results ++ "-}" : []
+    in  printf "module Test.%s where\n\n" (moduleName m)
+        ++
+        printf "import %s\n" (moduleName m)
+        ++
+        "import Test.QuickCheck (quickCheck)\n\n"
+        ++
+        foldMap (unlines . map formatImport) (moduleSetup m)
+        ++
+        "test :: IO ()\n"
+        ++
+        "test = do\n"
+        ++
+        (unlines $ indent $
+            (concatMap formatTest $ concat $ moduleContent m) ++
+            "return ()" : [])
 
 -- |
 -- Extract 'DocTest's from all given modules and all modules included by the
