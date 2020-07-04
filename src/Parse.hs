@@ -21,6 +21,7 @@ import           Data.Char (isSpace)
 import           Data.List
 import           Data.Maybe
 import           Data.String
+import qualified Data.Monoid.HT as Mn
 import qualified Data.List.HT as ListHT
 import           System.FilePath (joinPath, (</>), (<.>))
 import           System.Directory (createDirectoryIfMissing)
@@ -94,6 +95,8 @@ formatTestModule m =
             []
         formatImport (Located loc (Example str [])) =
             unlines $ formatLinePragma loc : str : []
+        isProperty (Located _loc (Property _)) = True; isProperty _ = False
+        isExample (Located _loc (Example _ _)) = True; isExample _ = False
         formatTest (Located loc body) =
             formatLocation loc ++
             case body of
@@ -105,9 +108,11 @@ formatTestModule m =
         ++
         printf "import %s\n" (moduleName m)
         ++
-        "import Test.Doctest.Utility\n"
+        Mn.when (any isExample $ concat $ moduleContent m)
+            "import Test.Doctest.Utility\n"
         ++
-        "import Test.QuickCheck (quickCheck)\n\n"
+        Mn.when (any isProperty $ concat $ moduleContent m)
+            "import Test.QuickCheck (quickCheck)\n\n"
         ++
         foldMap (unlines . map formatImport) (moduleSetup m)
         ++
