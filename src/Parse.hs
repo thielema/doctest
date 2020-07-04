@@ -55,8 +55,10 @@ type Interaction = (Expression, ExpectedResult)
 
 
 generateTestSuite :: IO ()
-generateTestSuite =
-    writeTestSuite =<< getDocTests ["-i:analysis/src", "Utility"]
+generateTestSuite = do
+    modus <- getDocTests ["-i:analysis/src", "Utility"]
+    writeTestSuite modus
+    putStrLn $ unlines $ map (("Test."++) . moduleName) modus
 
 writeTestSuite :: [Module [Located DocTest]] -> IO ()
 writeTestSuite ms = do
