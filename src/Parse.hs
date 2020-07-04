@@ -98,10 +98,14 @@ formatTestModule m =
             formatLocation loc ++
             case body of
                 Property prop -> [printf "quickCheck (%s)" prop]
-                Example str results -> "{-" : str : map show results ++ "-}" : []
+                Example str results ->
+                    "runDoctest" :
+                    indent (("("++str++")") : show results : [])
     in  printf "module Test.%s where\n\n" (moduleName m)
         ++
         printf "import %s\n" (moduleName m)
+        ++
+        "import Test.Doctest.Utility\n"
         ++
         "import Test.QuickCheck (quickCheck)\n\n"
         ++
