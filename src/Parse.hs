@@ -20,7 +20,6 @@ module Parse (
 import           Data.Char (isSpace)
 import           Data.List
 import           Data.Maybe
-import           Data.String
 import qualified Data.Monoid.HT as Mn
 import qualified Data.List.HT as ListHT
 import           System.FilePath (joinPath, (</>), (<.>))
@@ -29,6 +28,7 @@ import           Text.Printf (printf)
 #if __GLASGOW_HASKELL__ < 710
 import           Control.Applicative
 #endif
+import           Test.DocTest.Base
 import           Extract
 import           Location
 
@@ -36,20 +36,7 @@ import           Location
 data DocTest = Example Expression ExpectedResult | Property Expression
   deriving (Eq, Show)
 
-data LineChunk = LineChunk String | WildCardChunk
-  deriving (Show, Eq)
-
-instance IsString LineChunk where
-    fromString = LineChunk
-
-data ExpectedLine = ExpectedLine [LineChunk] | WildCardLine
-  deriving (Show, Eq)
-
-instance IsString ExpectedLine where
-    fromString = ExpectedLine . return . LineChunk
-
 type Expression = String
-type ExpectedResult = [ExpectedLine]
 
 type Interaction = (Expression, ExpectedResult)
 
@@ -109,7 +96,7 @@ formatTestModule m =
         printf "import %s\n" (moduleName m)
         ++
         Mn.when (any isExample $ concat $ moduleContent m)
-            "import Test.Doctest.Utility\n"
+            "import Test.DocTest.Base\n"
         ++
         Mn.when (any isProperty $ concat $ moduleContent m)
             "import Test.QuickCheck (quickCheck)\n\n"
@@ -229,7 +216,7 @@ tryStripPrefix prefix ys = fromMaybe ys $ stripPrefix prefix ys
 
 mkExpectedLine :: String -> ExpectedLine
 mkExpectedLine x = case x of
-    "<BLANKLINE>" -> ""
+    "<BLANKLINE>" -> ExpectedLine [LineChunk ""]
     "..." -> WildCardLine
     _ -> ExpectedLine $ mkLineChunks x
 

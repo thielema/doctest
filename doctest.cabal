@@ -136,6 +136,7 @@ library
     , code-page >=0.1
     , deepseq
     , directory
+    , doctest-lib >=0.0 && <0.1
     , filepath
     , ghc >=7.0 && <8.11
     , ghc-paths >=0.1.0.9
